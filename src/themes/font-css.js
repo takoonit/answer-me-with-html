@@ -16,9 +16,10 @@ export { FONT_NAMES } from './font-list.js';
 
 const need = createRequire(import.meta.url);
 
-// The weight range 400 900 keeps the browser from drawing a fake bold when a theme asks for a bold heading: this face has one weight.
+// For a one-weight face, the weight range 400 900 keeps the browser from drawing a fake bold when a theme asks for a bold heading.
+// A variable font names its own weight range.
 export function composeFontCss(name) {
-  const { family, file, notice } = FONTS[name];
+  const { family, file, notice, weight = '400 900' } = FONTS[name];
   const data = readFileSync(need.resolve(file)).toString('base64');
-  return `/* ${notice} */\n@font-face {\n  font-family: "${family}";\n  font-style: normal;\n  font-weight: 400 900;\n  src: url(data:font/woff2;base64,${data}) format("woff2");\n}`;
+  return `/* ${notice} */\n@font-face {\n  font-family: "${family}";\n  font-style: normal;\n  font-weight: ${weight};\n  src: url(data:font/woff2;base64,${data}) format("woff2");\n}`;
 }
