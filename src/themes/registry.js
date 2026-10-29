@@ -7,10 +7,10 @@ import blueprint from './blueprint.js';
 import shadcn from './shadcn.js';
 import paper from './paper.js';
 import b3 from './3b1b.js';
-import expressive from './expressive.js';
+import expressive, { pop as expressivePop } from './expressive.js';
 import { readUserThemes, readThemeFile } from './user.js';
 
-const ALL = Object.freeze([blueprint, shadcn, paper, expressive, b3]);
+const ALL = Object.freeze([blueprint, shadcn, paper, expressive, expressivePop, b3]);
 export const BUILTIN_NAMES = ALL.map((t) => t.name);
 
 export const themes = (scope) => ALL.filter((t) => t.scope.includes(scope));
