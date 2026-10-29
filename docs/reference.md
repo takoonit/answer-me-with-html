@@ -241,7 +241,7 @@ Put one JSON file per theme in `~/.answer-me-with-html/themes/`. The file name i
 - Name installed fonts only. The default fonts are added as the fallback, so a reader without your fonts still gets readable text.
 - In `css`, start every selector with `&`. It stands for the theme's root, so the rules apply only under this theme.
 - Page font sizes follow the reader's `scale` setting. Use `var(--am-fs-*)` (the page text sizes) or `calc(Npx * var(--am-scale, 1))`; the toolbar keeps its size.
-- `font` (optional) names a font this tool ships. A page rendered with the theme embeds it, so it needs no network and the other pages do not grow. The only value for now is `bangers` ([Bangers](https://github.com/googlefonts/bangers), SIL OFL 1.1); use the family in `css`, for example `& .am-head h1 { font-family: "Bangers", Impact, sans-serif; }`. A version that does not know the field ignores it and shows the fallback font. Video pages do not embed the font.
+- `font` (optional) names a font this tool ships. A page rendered with the theme embeds it, so it needs no network and the other pages do not grow. The values are `bangers` ([Bangers](https://github.com/googlefonts/bangers), SIL OFL 1.1) and `google-sans-flex` ([Google Sans Flex](https://github.com/googlefonts/googlesans-flex), SIL OFL 1.1; a variable font with the weight and roundness axes, about 70 KB). Use the family in `css`, for example `& .am-head h1 { font-family: "Bangers", Impact, sans-serif; }`. A version that does not know the field ignores it and shows the fallback font. Video pages do not embed the font.
 - `requires` (optional) is the oldest version of this tool the theme supports, as `x.y.z`. On an older version the theme is skipped with `needs Answer me with HTML x.y.z or newer`; a version that does not know the field ignores it.
 - Keep the file self-contained: no `url()` or `image-set()` to `http:`, `https:` or `//`, no `@import`, no `@font-face` and no backslash escapes (they can hide a link from the check). A link would send a request every time someone opens a page, and pages work offline. `am theme check` warns about them; your existing theme keeps working. The theme catalog and `am theme add` reject them.
 - Each page carries the built-in themes plus its own theme, so it still opens on any machine.
@@ -256,6 +256,11 @@ The classes your `css` may target stay stable: a later version keeps every one o
 | Content | `.am-md`, `.am-callout`, `.am-callout--ok`, `.am-callout--warn`, `.am-callout--err`, `.am-callout-title`, `.am-kv` |
 | Drawing frame | `.am-frame`, `.am-ruler` |
 | Comment button | `.am-comment-btn`, `.am-comment-btn--on` |
+| More of the head | `.am-colophon`, `.am-sub` |
+| Toolbar | `.am-toolbar`, `.am-btn`, `.am-btn--reply`, `.am-pick`, `.am-has-reply-bar` (on `body` while the reply bar is open) |
+| Layout | `.am-grid`, `.am-kv-cell` |
+| Code | `.am-codeblock`, `.am-code-head`, `.am-code-copy`, `.am-code` |
+| Ask | `.am-ask`, `.am-ask-tag` |
 
 ### Diagram tokens
 

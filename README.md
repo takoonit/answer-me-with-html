@@ -319,4 +319,4 @@ Found a bug? Please open a [GitHub issue](https://github.com/QingYunA/answer-me-
 
 ## License
 
-[MIT](LICENSE). The Bangers font that a theme can embed is under the [SIL Open Font License 1.1](skills/answer-me-with-html/licenses/OFL-Bangers.txt).
+[MIT](LICENSE). The fonts a theme can embed are under the SIL Open Font License 1.1: [Bangers](skills/answer-me-with-html/licenses/OFL-Bangers.txt) and [Google Sans Flex](skills/answer-me-with-html/licenses/OFL-GoogleSansFlex.txt).

@@ -47,7 +47,7 @@ Whichever way you submit, the theme must follow these rules:
 
 - The file is a theme file ([docs/reference.md](docs/reference.md#your-own-theme)) plus the catalog fields `version` (`x.y.z`), `author`, `license`, and `description` (`{ "en": "one short sentence", "zh": "..." }`). `label` should have `en` and `zh`. The catalog fields are for the website; the CLI ignores them when it renders.
 - The file name is the theme name: lowercase letters, digits and `-`, and not the name of a built-in theme, `index` or `new`.
-- At most 16 KB. No `url()` or `image-set()` to `http:`, `https:` or `//`, no `@import`, no `@font-face`, no backslash. A theme names a font the CLI ships with `font` (only `bangers` for now); it does not bring its own.
+- At most 16 KB. No `url()` or `image-set()` to `http:`, `https:` or `//`, no `@import`, no `@font-face`, no backslash. A theme names a font the CLI ships with `font` (`bangers` or `google-sans-flex`); it does not bring its own.
 - `css` targets only the classes in `THEME_SELECTORS` (`src/themes/selectors.js`). If your theme needs a class that is not there, add it to the list in the same PR, with the reason.
 - Set `requires` only when the theme fails on an older version. A version that does not know a field ignores it, so a theme that uses `font` still works on 0.4.10 and newer; it shows system fonts there.
 - Every color token in light and dark, and the contrast that `am theme check` asks for.

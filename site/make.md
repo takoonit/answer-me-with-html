@@ -32,7 +32,7 @@ The file has these fields. Keep all of them.
 | `author` | The user's name or handle. Ask if you do not know it. |
 | `license` | `MIT` or `CC0-1.0`. |
 | `description` | One short sentence: `{ "en": "...", "zh": "..." }`. |
-| `font` | Optional. Only `"bangers"` (a comic display font the tool ships). Remove the field for system fonts. |
+| `font` | Optional. `"bangers"` (a comic display font) or `"google-sans-flex"` (a variable sans with weight and roundness axes); the tool ships both. Remove the field for system fonts. |
 | `tokens.common` | Values shared by light and dark: `--radius`, `--bw` (border width), `--shadow`, `--head-font`, and the shape tokens of diagrams. |
 | `tokens.light`, `tokens.dark` | Every color token, in each mode (below). |
 | `css` | Optional decoration. Every selector starts with `&`, the theme's root. |
@@ -43,7 +43,7 @@ The file has these fields. Keep all of them.
 
 **Chart series tokens.** Optional, and they do not count toward the 8: `--series-1` `--series-2` `--series-3` `--series-4` `--series-5` `--series-6` color the bars, lines and slices of a `chart`. Leave them out and the chart uses a fixed palette, a light set and a dark set. A token you set should keep contrast 3:1 against `--paper`, in light and dark; a lower contrast is a warning, not an error, because the values are written on the chart and in its data table.
 
-**css.** It may target only these classes: `.am-head` `.am-head h1` `.am-head-meta` `.am-intro` `.am-panel` `.am-panel--bare` `.am-panel-head` `.am-panel-head h2` `.am-panel-id` `.am-panel-meta` `.am-panel-body` `.am-md` `.am-callout` `.am-callout--ok` `.am-callout--warn` `.am-callout--err` `.am-callout-title` `.am-kv` `.am-comment-btn` `.am-comment-btn--on` `.am-frame` `.am-ruler`, plus elements such as `body`. Do not style diagrams with css (`.am-node`, `svg` and so on); use the diagram tokens.
+**css.** It may target only these classes: `.am-head` `.am-head h1` `.am-head-meta` `.am-intro` `.am-panel` `.am-panel--bare` `.am-panel-head` `.am-panel-head h2` `.am-panel-id` `.am-panel-meta` `.am-panel-body` `.am-md` `.am-callout` `.am-callout--ok` `.am-callout--warn` `.am-callout--err` `.am-callout-title` `.am-kv` `.am-comment-btn` `.am-comment-btn--on` `.am-frame` `.am-ruler` `.am-colophon` `.am-sub` `.am-toolbar` `.am-btn` `.am-btn--reply` `.am-pick` `.am-has-reply-bar` `.am-grid` `.am-kv-cell` `.am-codeblock` `.am-code-head` `.am-code-copy` `.am-code` `.am-ask` `.am-ask-tag`, plus elements such as `body`. Do not style diagrams with css (`.am-node`, `svg` and so on); use the diagram tokens.
 
 **Rules.**
 

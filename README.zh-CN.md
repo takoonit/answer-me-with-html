@@ -318,4 +318,4 @@ npm run snapshot  # 与 origin/main 对比生成的 HTML（重构不能改变它
 
 ## License
 
-[MIT](LICENSE)。主题可以内嵌的 Bangers 字体使用 [SIL Open Font License 1.1](skills/answer-me-with-html/licenses/OFL-Bangers.txt)。
+[MIT](LICENSE)。主题可以内嵌的字体使用 SIL Open Font License 1.1：[Bangers](skills/answer-me-with-html/licenses/OFL-Bangers.txt) 和 [Google Sans Flex](skills/answer-me-with-html/licenses/OFL-GoogleSansFlex.txt)。

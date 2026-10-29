@@ -3,6 +3,9 @@
  * This Font Software is licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org),
  * the full text of which is in skills/answer-me-with-html/licenses/OFL-Bangers.txt (a copy of node_modules/@fontsource/bangers/LICENSE;
  * `npx skills add` copies only the skill folder, and the bundle there carries the font). The font is embedded unchanged, as a Latin subset in WOFF2.
+ * Google Sans Flex: Copyright 2015 Google LLC (https://github.com/googlefonts/googlesans-flex). Licensed under the SIL Open Font License,
+ * Version 1.1, the full text of which is in skills/answer-me-with-html/licenses/OFL-GoogleSansFlex.txt (a copy of
+ * node_modules/@fontsource-variable/google-sans-flex/LICENSE). Embedded unchanged: the Latin subset with the weight and roundness axes, in WOFF2.
  */
 // The page styles for a theme's own font: an @font-face with the font file inlined (the page needs no network).
 // A theme file names its font with `"font": "<name>"` (see check.js and font-list.js); pageCss adds the face only to a page rendered with

@@ -13,4 +13,14 @@ export const THEME_SELECTORS = Object.freeze([
   '.am-comment-btn', '.am-comment-btn--on',
   // The drawing frame and its rulers (blueprint).
   '.am-frame', '.am-ruler',
+  // More of the page head: the generator line and the subtitle.
+  '.am-colophon', '.am-sub',
+  // The toolbar: its buttons, the filled Reply button and the theme and mode lists; the body class while the reply bar is open.
+  '.am-toolbar', '.am-btn', '.am-btn--reply', '.am-pick', '.am-has-reply-bar',
+  // The panel grid and the cells of a key-value table.
+  '.am-grid', '.am-kv-cell',
+  // Code blocks: the block, its title row, the copy button and the code itself.
+  '.am-codeblock', '.am-code-head', '.am-code-copy', '.am-code',
+  // Ask: the decision box and its "suggested" tag.
+  '.am-ask', '.am-ask-tag',
 ]);
