@@ -15,6 +15,61 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/builtin.js
+import { createRequire } from "node:module";
+var require2, builtin;
+var init_builtin = __esm({
+  "src/builtin.js"() {
+    require2 = createRequire(import.meta.url);
+    builtin = (name) => process.getBuiltinModule?.(name) ?? require2(name);
+  }
+});
+
+// src/home.js
+import { mkdirSync, existsSync as existsSync2, statSync as statSync3, lstatSync, chmodSync } from "node:fs";
+import { homedir as homedir2, tmpdir } from "node:os";
+import { join as join2 } from "node:path";
+function ensureHome(home) {
+  const fresh = !existsSync2(home);
+  mkdirSync(home, { recursive: true, mode: 448 });
+  if (process.platform === "win32" || !(fresh || home === defaultHome())) return;
+  if ((statSync3(home).mode & 511) !== 448) chmodSync(home, 448);
+}
+function checkedTempHome({ create = false } = {}) {
+  const dir = tempHome();
+  if (create) {
+    try {
+      mkdirSync(dir, { recursive: true, mode: 448 });
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+    }
+  }
+  let info;
+  try {
+    info = lstatSync(dir);
+  } catch (e) {
+    if (e.code === "ENOENT" && !create) return null;
+    throw e;
+  }
+  const mine = process.getuid ? info.uid === process.getuid() && (info.mode & 63) === 0 : true;
+  if (!info.isDirectory() || !mine) throw new UnsafeTempHome(dir);
+  return dir;
+}
+var defaultHome, tempHome, UnsafeTempHome;
+var init_home = __esm({
+  "src/home.js"() {
+    defaultHome = () => join2(homedir2(), ".answer-me-with-html");
+    tempHome = () => join2(tmpdir(), process.getuid ? `answer-me-with-html-${process.getuid()}` : "answer-me-with-html");
+    UnsafeTempHome = class extends Error {
+      constructor(dir) {
+        super(`${dir} is not a private folder of this user`);
+        this.name = "UnsafeTempHome";
+        this.dir = dir;
+      }
+    };
+  }
+});
+
 // temml-string:temml
 var temml_exports = {};
 __export(temml_exports, {
@@ -28,8 +83,200 @@ var init_temml = __esm({
   }
 });
 
+// src/warm.js
+import { lstatSync as lstatSync4, readFileSync as readFileSync9, statSync as statSync4, mkdirSync as mkdirSync4, writeFileSync as writeFileSync7 } from "node:fs";
+function bundleId(bundleFile) {
+  const { size, mtimeMs } = statSync4(bundleFile);
+  return `${pathHash(bundleFile)}-${size.toString(36)}-${Math.floor(mtimeMs).toString(36)}-${process.versions.node.split(".")[0]}`;
+}
+var pathHash;
+var init_warm = __esm({
+  "src/warm.js"() {
+    init_home();
+    init_builtin();
+    pathHash = (text2) => {
+      let h2 = 2166136261;
+      for (let i = 0; i < text2.length; i++) h2 = Math.imul(h2 ^ text2.charCodeAt(i), 16777619);
+      return (h2 >>> 0).toString(36);
+    };
+  }
+});
+
+// src/warm-server.js
+var warm_server_exports = {};
+__export(warm_server_exports, {
+  runWarmServer: () => runWarmServer
+});
+import { readFileSync as readFileSync10, renameSync as renameSync6, rmSync as rmSync7, writeFileSync as writeFileSync8, chmodSync as chmodSync2 } from "node:fs";
+import { createServer, connect as connect2 } from "node:net";
+import { Readable } from "node:stream";
+function swapEnv(env) {
+  const saved = { ...process.env };
+  const apply = (next) => {
+    for (const key of Object.keys(process.env)) if (!(key in next)) delete process.env[key];
+    Object.assign(process.env, next);
+  };
+  apply(env);
+  return () => apply(saved);
+}
+function collector() {
+  const chunks = [];
+  return { write: (s) => {
+    chunks.push(String(s));
+    return true;
+  }, text: () => chunks.join("") };
+}
+async function runWarmServer({ socket, token: tokenFile, main: main2, oldNodeHint: oldNodeHint2 }) {
+  const token = builtin("node:crypto").randomBytes(32).toString("hex");
+  const server = createServer({ allowHalfOpen: true });
+  const listen = () => new Promise((done2, fail) => {
+    server.once("error", fail);
+    server.listen(socket, () => {
+      server.off("error", fail);
+      done2();
+    });
+  });
+  try {
+    await listen();
+  } catch (e) {
+    if (e.code !== "EADDRINUSE" || await alive2(socket)) return 0;
+    rmSync7(socket, { force: true });
+    try {
+      await listen();
+    } catch {
+      return 0;
+    }
+  }
+  chmodSync2(socket, 384);
+  writeFileSync8(`${tokenFile}.tmp`, token, { mode: 384 });
+  renameSync6(`${tokenFile}.tmp`, tokenFile);
+  rmSync7(tokenFile.replace(/\.token$/, ".starting"), { force: true });
+  let renders = 0;
+  let idle;
+  let queue = Promise.resolve();
+  let finish2;
+  const done = new Promise((resolve5) => {
+    finish2 = resolve5;
+  });
+  const stop = () => {
+    clearTimeout(idle);
+    clearInterval(check);
+    server.close();
+    try {
+      if (readFileSync10(tokenFile, "utf8") === token) rmSync7(tokenFile, { force: true });
+    } catch {
+    }
+    rmSync7(socket, { force: true });
+    finish2(0);
+  };
+  const touch = () => {
+    clearTimeout(idle);
+    idle = setTimeout(stop, IDLE_MS);
+    idle.unref?.();
+  };
+  touch();
+  const bundleFile = process.argv[1];
+  const startedAs = bundleId(bundleFile);
+  const check = setInterval(() => {
+    let now;
+    try {
+      now = bundleId(bundleFile);
+    } catch {
+    }
+    if (now !== startedAs) stop();
+  }, CHECK_MS);
+  check.unref?.();
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.once(signal, stop);
+  const render = async (req) => {
+    if (!Array.isArray(req.argv) || req.argv[0] !== "render" || typeof req.cwd !== "string" || !req.env || typeof req.env !== "object") return { handled: false };
+    const restoreEnv = swapEnv(req.env);
+    const savedCwd = process.cwd();
+    try {
+      process.chdir(req.cwd);
+    } catch {
+      restoreEnv();
+      return { handled: false };
+    }
+    const stdout = collector();
+    const stderr = collector();
+    let code;
+    try {
+      code = await main2(req.argv, {
+        stdout,
+        stderr,
+        env: process.env,
+        cwd: req.cwd,
+        background: true,
+        scriptPath: req.scriptPath,
+        stdin: Readable.from(req.stdin === void 0 ? [] : [req.stdin])
+      });
+    } catch (err) {
+      stderr.write(`\u2717 Internal error: ${err.stack || err}
+`);
+      const hint = oldNodeHint2?.();
+      if (hint) stderr.write(`  ${hint}
+`);
+      code = 1;
+    } finally {
+      process.chdir(savedCwd);
+      restoreEnv();
+    }
+    return { code: code ?? 0, stdout: stdout.text(), stderr: stderr.text() };
+  };
+  server.on("connection", (conn) => {
+    let text2 = "";
+    conn.setEncoding("utf8");
+    conn.on("error", () => {
+    });
+    conn.on("data", (chunk) => {
+      text2 += chunk;
+      if (text2.length > MAX_REQUEST_BYTES) conn.destroy();
+    });
+    conn.on("end", () => {
+      queue = queue.then(async () => {
+        touch();
+        let req;
+        try {
+          req = JSON.parse(text2);
+        } catch {
+          conn.end(JSON.stringify({ handled: false }));
+          return;
+        }
+        const given = Buffer.from(String(req.token ?? ""));
+        const expected = Buffer.from(token);
+        if (given.length !== expected.length || !builtin("node:crypto").timingSafeEqual(given, expected)) {
+          conn.end(JSON.stringify({ handled: false }));
+          return;
+        }
+        conn.end(JSON.stringify(await render(req)));
+        if (++renders >= MAX_RENDERS) stop();
+      });
+    });
+  });
+  return done;
+}
+var IDLE_MS, MAX_RENDERS, MAX_REQUEST_BYTES, CHECK_MS, alive2;
+var init_warm_server = __esm({
+  "src/warm-server.js"() {
+    init_builtin();
+    init_warm();
+    IDLE_MS = 10 * 6e4;
+    MAX_RENDERS = 500;
+    MAX_REQUEST_BYTES = 32 * 1024 * 1024;
+    CHECK_MS = 6e4;
+    alive2 = (socket) => new Promise((done) => {
+      const s = connect2(socket);
+      s.once("connect", () => {
+        s.destroy();
+        done(true);
+      });
+      s.once("error", () => done(false));
+    });
+  }
+});
+
 // src/cli.js
-import { readFileSync as readFileSync9, writeFileSync as writeFileSync7, mkdirSync as mkdirSync4, existsSync as existsSync7, rmSync as rmSync7, statSync as statSync4 } from "node:fs";
+import { readFileSync as readFileSync11, writeFileSync as writeFileSync9, mkdirSync as mkdirSync5, existsSync as existsSync7, rmSync as rmSync8, statSync as statSync5 } from "node:fs";
 
 // src/assets.js
 var VERSION = "0.5.10";
@@ -1376,12 +1623,8 @@ var VIDEO_EXPORT_JS = "// The export engine for the path that has no ffmpeg: the
 var VIDEO_MUX_JS = "// Minimal WebM (Matroska) writer for the export path that has no ffmpeg: the browser encodes the frames (WebCodecs,\n// see src/runtime/video.js) and this module writes the container. One VP8/VP9 video track and an optional Opus audio\n// track. The blocks are buffered, sorted by time and cut into clusters of about a second, so the sound and the\n// picture of a moment sit next to each other in the file. The Segment and the Clusters carry the unknown size, which\n// is how a stream is written: nothing needs to be measured first and nothing is patched afterwards.\n// Plain bytes only (no Buffer, no imports), so the same source runs in Node and inside a page (scripts/inline-assets.mjs\n// turns it into a script for the player page).\nconst APP = 'answer-me-with-html';   // MuxingApp / WritingApp\nconst CLUSTER_MS = 1000;              // how much time one cluster holds\nconst SEEK_PRE_ROLL_NS = 80_000_000;  // what the Opus specification asks for\n\nconst ID = {\n  EBML: [0x1a, 0x45, 0xdf, 0xa3],\n  EBMLVersion: [0x42, 0x86], EBMLReadVersion: [0x42, 0xf7], EBMLMaxIDLength: [0x42, 0xf2], EBMLMaxSizeLength: [0x42, 0xf3],\n  DocType: [0x42, 0x82], DocTypeVersion: [0x42, 0x87], DocTypeReadVersion: [0x42, 0x85],\n  Segment: [0x18, 0x53, 0x80, 0x67], Info: [0x15, 0x49, 0xa9, 0x66], TimecodeScale: [0x2a, 0xd7, 0xb1],\n  MuxingApp: [0x4d, 0x80], WritingApp: [0x57, 0x41], Duration: [0x44, 0x89],\n  Tracks: [0x16, 0x54, 0xae, 0x6b], TrackEntry: [0xae], TrackNumber: [0xd7], TrackUID: [0x73, 0xc5], FlagLacing: [0x9c],\n  CodecID: [0x86], TrackType: [0x83], Video: [0xe0], PixelWidth: [0xb0], PixelHeight: [0xba],\n  Audio: [0xe1], SamplingFrequency: [0xb5], Channels: [0x9f], CodecPrivate: [0x63, 0xa2],\n  CodecDelay: [0x56, 0xaa], SeekPreRoll: [0x56, 0xbb],\n  Cluster: [0x1f, 0x43, 0xb6, 0x75], Timecode: [0xe7], SimpleBlock: [0xa3],\n};\nconst UNKNOWN_SIZE = new Uint8Array([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);\n\nconst concat = (parts) => {\n  let total = 0;\n  for (const p of parts) total += p.length;\n  const out = new Uint8Array(total);\n  let at = 0;\n  for (const p of parts) { out.set(p, at); at += p.length; }\n  return out;\n};\nconst bytes = (id) => new Uint8Array(id);\nconst text = (s) => new TextEncoder().encode(s);\n\n// Element size as a variable-size integer, in the shortest length that fits; the all-ones value is reserved.\nfunction size(n) {\n  for (let len = 1; len <= 8; len++) {\n    if (len === 8 || n < 2 ** (7 * len) - 1) {\n      const out = new Uint8Array(len);\n      let v = n;\n      for (let i = len - 1; i >= 0; i--) {\n        out[i] = v & 0xff;\n        v = Math.floor(v / 256);\n      }\n      out[0] |= 0x80 >> (len - 1);\n      return out;\n    }\n  }\n}\n\n// Unsigned integer, big endian, as short as it can be (a Matroska integer drops leading zero bytes).\nfunction uint(n) {\n  const out = [];\n  let v = Math.round(n);\n  do {\n    out.unshift(v & 0xff);\n    v = Math.floor(v / 256);\n  } while (v > 0);\n  return new Uint8Array(out);\n}\n\nfunction f64(x) {\n  const out = new Uint8Array(8);\n  new DataView(out.buffer).setFloat64(0, x);\n  return out;\n}\n\nconst elem = (id, payload) => concat([bytes(id), size(payload.length), payload]);\n\n// WebM writer. video: { width, height, codec } with codec 'V_VP9' or 'V_VP8'; audio: null or\n// { channels, codecPrivate, preSkipSamples }. Duration is written up front, so a player knows the length at once.\nclass WebmWriter {\n  constructor({ width, height, durationMs, videoCodec = 'V_VP9', audio = null }) {\n    this.width = width;\n    this.height = height;\n    this.durationMs = durationMs;\n    this.videoCodec = videoCodec;\n    this.audio = audio;\n    this.blocks = [];\n  }\n\n  // track 1 is the picture, track 2 the sound. key marks a key frame; tsUs is the time in microseconds.\n  block({ track, key, tsUs, data }) {\n    this.blocks.push({ track, key: Boolean(key), ms: Math.round(tsUs / 1000), data });\n  }\n\n  count(track) {\n    return this.blocks.reduce((n, b) => n + (b.track === track ? 1 : 0), 0);\n  }\n\n  build() {\n    const parts = [\n      elem(ID.EBML, concat([\n        elem(ID.EBMLVersion, uint(1)),\n        elem(ID.EBMLReadVersion, uint(1)),\n        elem(ID.EBMLMaxIDLength, uint(4)),\n        elem(ID.EBMLMaxSizeLength, uint(8)),\n        elem(ID.DocType, text('webm')),\n        elem(ID.DocTypeVersion, uint(4)),\n        elem(ID.DocTypeReadVersion, uint(2)),\n      ])),\n      concat([bytes(ID.Segment), UNKNOWN_SIZE]),\n      elem(ID.Info, concat([\n        elem(ID.TimecodeScale, uint(1_000_000)),\n        elem(ID.MuxingApp, text(APP)),\n        elem(ID.WritingApp, text(APP)),\n        elem(ID.Duration, f64(this.durationMs)),\n      ])),\n      elem(ID.Tracks, concat([this.#videoTrack(), ...(this.audio ? [this.#audioTrack()] : [])])),\n    ];\n    for (const cluster of this.#clusters()) parts.push(cluster);\n    return concat(parts);\n  }\n\n  #track(num, type, codecId, extra) {\n    return elem(ID.TrackEntry, concat([\n      elem(ID.TrackNumber, uint(num)),\n      elem(ID.TrackUID, uint(num)),\n      elem(ID.FlagLacing, uint(0)),\n      elem(ID.CodecID, text(codecId)),\n      elem(ID.TrackType, uint(type)),\n      ...extra,\n    ]));\n  }\n\n  #videoTrack() {\n    return this.#track(1, 1, this.videoCodec, [\n      elem(ID.Video, concat([elem(ID.PixelWidth, uint(this.width)), elem(ID.PixelHeight, uint(this.height))])),\n    ]);\n  }\n\n  #audioTrack() {\n    const { channels, codecPrivate, preSkipSamples } = this.audio;\n    const extra = [elem(ID.Audio, concat([elem(ID.SamplingFrequency, f64(48000)), elem(ID.Channels, uint(channels))]))];\n    if (codecPrivate) extra.unshift(elem(ID.CodecPrivate, codecPrivate));\n    // The encoder adds pre-skip samples of silence; CodecDelay tells the player to drop them again.\n    extra.push(elem(ID.CodecDelay, uint((preSkipSamples / 48000) * 1e9)), elem(ID.SeekPreRoll, uint(SEEK_PRE_ROLL_NS)));\n    return this.#track(2, 2, 'A_OPUS', extra);\n  }\n\n  #clusters() {\n    const blocks = [...this.blocks].sort((a, b) => a.ms - b.ms || a.track - b.track);\n    const out = [];\n    for (let i = 0; i < blocks.length; ) {\n      const start = blocks[i].ms;\n      const body = [elem(ID.Timecode, uint(start))];\n      while (i < blocks.length && blocks[i].ms - start <= CLUSTER_MS) {\n        body.push(this.#block(blocks[i], start));\n        i++;\n      }\n      out.push(concat([bytes(ID.Cluster), UNKNOWN_SIZE, ...body]));\n    }\n    return out;\n  }\n\n  #block(b, clusterStart) {\n    const head = new Uint8Array(4);\n    head[0] = 0x80 | b.track;                 // the track number as a variable-size integer\n    new DataView(head.buffer).setInt16(1, b.ms - clusterStart);\n    head[3] = b.key ? 0x80 : 0x00;\n    return elem(ID.SimpleBlock, concat([head, b.data]));\n  }\n}\n\nwindow.__amvWebm = { WebmWriter };\n";
 
 // src/cli.js
+init_builtin();
 import { join as join11, resolve as resolve4, dirname as dirname3, basename as basename4, extname as extname3, sep as sep4 } from "node:path";
-
-// src/builtin.js
-import { createRequire } from "node:module";
-var require2 = createRequire(import.meta.url);
-var builtin = (name) => process.getBuiltinModule?.(name) ?? require2(name);
 
 // src/languages/zh.js
 var zh_default = {
@@ -9599,6 +9842,7 @@ function sha256Base64(text2) {
 }
 
 // src/native-hash.js
+init_builtin();
 var nativeSha256Base64 = (text2) => builtin("node:crypto").createHash("sha256").update(text2, "utf8").digest("base64");
 
 // src/csp.js
@@ -9880,50 +10124,9 @@ ${lightboxShell(ui, body.includes('class="am-diagram'))}${sourceTag(source)}
 import { join as join6 } from "node:path";
 
 // src/config.js
+init_home();
 import { readFileSync as readFileSync4, writeFileSync, rmSync, existsSync as existsSync3 } from "node:fs";
 import { join as join3, dirname } from "node:path";
-
-// src/home.js
-import { mkdirSync, existsSync as existsSync2, statSync as statSync3, lstatSync, chmodSync } from "node:fs";
-import { homedir as homedir2, tmpdir } from "node:os";
-import { join as join2 } from "node:path";
-var defaultHome = () => join2(homedir2(), ".answer-me-with-html");
-function ensureHome(home) {
-  const fresh = !existsSync2(home);
-  mkdirSync(home, { recursive: true, mode: 448 });
-  if (process.platform === "win32" || !(fresh || home === defaultHome())) return;
-  if ((statSync3(home).mode & 511) !== 448) chmodSync(home, 448);
-}
-var tempHome = () => join2(tmpdir(), process.getuid ? `answer-me-with-html-${process.getuid()}` : "answer-me-with-html");
-var UnsafeTempHome = class extends Error {
-  constructor(dir) {
-    super(`${dir} is not a private folder of this user`);
-    this.name = "UnsafeTempHome";
-    this.dir = dir;
-  }
-};
-function checkedTempHome({ create = false } = {}) {
-  const dir = tempHome();
-  if (create) {
-    try {
-      mkdirSync(dir, { recursive: true, mode: 448 });
-    } catch (e) {
-      if (e.code !== "EEXIST") throw e;
-    }
-  }
-  let info;
-  try {
-    info = lstatSync(dir);
-  } catch (e) {
-    if (e.code === "ENOENT" && !create) return null;
-    throw e;
-  }
-  const mine = process.getuid ? info.uid === process.getuid() && (info.mode & 63) === 0 : true;
-  if (!info.isDirectory() || !mine) throw new UnsafeTempHome(dir);
-  return dir;
-}
-
-// src/config.js
 var ConfigError = class extends Error {
   constructor(message) {
     super(message);
@@ -10023,10 +10226,13 @@ function resetConfig(key, env = process.env) {
 }
 
 // src/themes/catalog.js
+init_builtin();
 import { mkdirSync as mkdirSync2, readFileSync as readFileSync6, renameSync as renameSync2, rmSync as rmSync2, writeFileSync as writeFileSync3 } from "node:fs";
 import { join as join5 } from "node:path";
+init_home();
 
 // src/state.js
+init_home();
 import { readFileSync as readFileSync5, writeFileSync as writeFileSync2, renameSync } from "node:fs";
 import { join as join4 } from "node:path";
 var DAY = 24 * 60 * 60 * 1e3;
@@ -10558,11 +10764,13 @@ var allBeats = (video) => [...video.introBeats, ...video.scenes.flatMap((s) => s
 var round3 = (x2) => Math.round(x2 * 1e3) / 1e3;
 
 // src/video/tts.js
+init_builtin();
 import { mkdirSync as mkdirSync3, readFileSync as readFileSync7, writeFileSync as writeFileSync4, existsSync as existsSync4, rmSync as rmSync3, mkdtempSync, renameSync as renameSync4 } from "node:fs";
 import { tmpdir as tmpdir2 } from "node:os";
 import { join as join7 } from "node:path";
 
 // src/sys.js
+init_builtin();
 import { renameSync as renameSync3 } from "node:fs";
 var childProcess = () => builtin("node:child_process");
 var DENIED2 = /* @__PURE__ */ new Set(["EPERM", "EACCES", "EROFS"]);
@@ -11109,6 +11317,7 @@ ${sourceTag(source)}
 }
 
 // src/video/export.js
+init_builtin();
 import { existsSync as existsSync5, mkdtempSync as mkdtempSync2, rmSync as rmSync4, writeFileSync as writeFileSync5 } from "node:fs";
 import { tmpdir as tmpdir3 } from "node:os";
 import { join as join8 } from "node:path";
@@ -11376,6 +11585,7 @@ import { readdirSync as readdirSync2, lstatSync as lstatSync2, rmSync as rmSync5
 import { join as join9 } from "node:path";
 
 // src/update.js
+init_builtin();
 var childProcess4 = () => builtin("node:child_process");
 var UPDATE = Object.freeze({
   checkEveryDays: 1,
@@ -11551,6 +11761,9 @@ function afterRender({ home, env, config, current, scriptPath, background, now =
   return hints;
 }
 
+// src/cli.js
+init_home();
+
 // src/math-load.js
 async function loadMath(source) {
   if (!mayHaveMath(String(source))) return;
@@ -11613,6 +11826,8 @@ ${text2.replace(/^\n+/, "")}`;
 }
 
 // src/serve.js
+init_builtin();
+init_home();
 import { networkInterfaces, uptime } from "node:os";
 import { readFileSync as readFileSync8, writeFileSync as writeFileSync6, renameSync as renameSync5, rmSync as rmSync6, watch, lstatSync as lstatSync3, existsSync as existsSync6, openSync, fstatSync, closeSync, linkSync, constants as fsConstants } from "node:fs";
 import { lstat, realpath, readFile, stat } from "node:fs/promises";
@@ -12016,8 +12231,8 @@ async function startServer({ home, port = DEFAULT_PORT, lan = false, publicUrl, 
   if (tail && !secretFile) ensureHome(home);
   const secret = loadSecret(secretFile ?? (tail ? join10(home, "serve-secret") : void 0));
   const live = liveStreams(home);
-  const { createServer } = await import("node:http");
-  const server = createServer(handler(home, secret, allowedHosts, live));
+  const { createServer: createServer2 } = await import("node:http");
+  const server = createServer2(handler(home, secret, allowedHosts, live));
   await new Promise((done, fail) => {
     server.once("error", (e) => fail(e.code === "EADDRINUSE" ? new ServeError(`Port ${port} is already in use; pick another with am serve --port <n>`) : tail && e.code === "EADDRNOTAVAIL" ? new ServeError(`Cannot listen on ${listenHost}: Tailscale in userspace-networking mode has no interface for it. For tailnet devices, run \`tailscale serve --bg ${port}\` and am serve --public-url https://<machine>.<tailnet>.ts.net; --lan reaches only the local network`) : e));
     server.listen(port, listenHost, done);
@@ -12324,6 +12539,10 @@ ${USAGE}`);
       return cmdServe(opts, ctx);
     case "__update-check":
       return await runUpdateCheck(amHome(env)) ? 0 : 1;
+    // The warm renderer (src/warm-server.js), started by the entry for the next renders: am __warm-server <socket> <token file>.
+    // Loaded here: its node:net and node:stream would otherwise load on every start.
+    case "__warm-server":
+      return (await Promise.resolve().then(() => (init_warm_server(), warm_server_exports))).runWarmServer({ socket: arg, token: rest[0], main, oldNodeHint });
     case "list":
       return cmdList(ctx), 0;
     case "help":
@@ -12343,7 +12562,7 @@ async function withSource(arg, io, fail, fn3) {
   const cwd = io.cwd ?? process.cwd();
   let src;
   try {
-    src = arg === "-" ? await readStream(io.stdin ?? process.stdin) : readFileSync9(resolve4(cwd, arg), "utf8");
+    src = arg === "-" ? await readStream(io.stdin ?? process.stdin) : readFileSync11(resolve4(cwd, arg), "utf8");
   } catch (e) {
     fail(`\u2717 Cannot read the draft: ${e.message}`);
     return 2;
@@ -12414,7 +12633,7 @@ function saveDraft(src, { env, io }) {
   for (const folder of folders) {
     try {
       const dir = folder();
-      mkdirSync4(dir, { recursive: true });
+      mkdirSync5(dir, { recursive: true });
       return writeNew(dir, name, src);
     } catch {
     }
@@ -12425,7 +12644,7 @@ function writeNew(dir, name, text2) {
   for (let n = 1; ; n++) {
     const file = join11(dir, n === 1 ? name : name.replace(/\.md$/, `-${n}.md`));
     try {
-      writeFileSync7(file, text2, { flag: "wx" });
+      writeFileSync9(file, text2, { flag: "wx" });
       return file;
     } catch (e) {
       if (e.code !== "EEXIST") throw e;
@@ -12439,7 +12658,7 @@ function keepDraft(result, src, from, ctx) {
     if (saved) ctx.print(`  draft: ${saved}`);
   } else if (from?.file && !warned && isKeptDraft(from.file, ctx)) {
     try {
-      rmSync7(from.file, { force: true });
+      rmSync8(from.file, { force: true });
     } catch (e) {
       ctx.fail(`! Kept the draft ${from.file} (${e.code ?? e.message})`);
     }
@@ -12541,7 +12760,7 @@ async function cmdPatch(htmlArg, fromArg, opts, ctx) {
   const file = resolve4(cwd, htmlArg);
   let html;
   try {
-    html = readFileSync9(file, "utf8");
+    html = readFileSync11(file, "utf8");
   } catch (e) {
     fail(`\u2717 Cannot read the HTML: ${e.message}`);
     return 2;
@@ -12555,7 +12774,7 @@ async function cmdPatch(htmlArg, fromArg, opts, ctx) {
   const from = opts.from ?? fromArg;
   let replacement;
   try {
-    replacement = !from || from === "-" ? await readStream(io.stdin ?? process.stdin) : readFileSync9(resolve4(cwd, from), "utf8");
+    replacement = !from || from === "-" ? await readStream(io.stdin ?? process.stdin) : readFileSync11(resolve4(cwd, from), "utf8");
   } catch (e) {
     fail(`\u2717 Cannot read the new panel draft: ${e.message}`);
     return 2;
@@ -12686,7 +12905,7 @@ function themeWarnings({ fail, themes: themes2 }) {
 function outputPath(dir, title, opts, { env, io, fail }) {
   if (opts.out) {
     const file = resolve4(io.cwd ?? process.cwd(), opts.out);
-    if (statSync4(file, { throwIfNoEntry: false })?.isDirectory()) {
+    if (statSync5(file, { throwIfNoEntry: false })?.isDirectory()) {
       fail("\u2717 -o names a folder; give a file path, for example -o page.html");
       return null;
     }
@@ -12698,14 +12917,14 @@ function writePage(file, html, env) {
   const home = resolve4(amHome(env));
   const path = resolve4(file);
   if (path.startsWith(home + sep4)) ensureHome(home);
-  mkdirSync4(dirname3(file), { recursive: true });
-  if (!path.startsWith(join11(home, "pages") + sep4)) return writeFileSync7(file, html);
+  mkdirSync5(dirname3(file), { recursive: true });
+  if (!path.startsWith(join11(home, "pages") + sep4)) return writeFileSync9(file, html);
   const tmp = join11(dirname3(file), `.${basename4(file)}.${process.pid}.tmp`);
   try {
-    writeFileSync7(tmp, html);
+    writeFileSync9(tmp, html);
     renameOver(tmp, file);
   } finally {
-    rmSync7(tmp, { force: true });
+    rmSync8(tmp, { force: true });
   }
 }
 function savePage(html, file, { fallback, inPlace }, { fail, env }) {
@@ -12737,7 +12956,7 @@ function savePage(html, file, { fallback, inPlace }, { fail, env }) {
 }
 function removeEarlier(file, { fail }) {
   try {
-    rmSync7(file, { force: true });
+    rmSync8(file, { force: true });
   } catch (e) {
     if (!isDenied(e)) throw e;
     fail(`! Kept the earlier page ${file} (permission denied, ${e.code})`);
@@ -13050,7 +13269,9 @@ function openFile(file) {
 }
 
 // bin/am.js
-main(process.argv.slice(2), { background: true, scriptPath: process.argv[1] }).then(
+init_builtin();
+var stdin = globalThis.__amStdin === void 0 ? void 0 : builtin("node:stream").Readable.from([globalThis.__amStdin]);
+main(process.argv.slice(2), { background: true, scriptPath: process.argv[1], ...stdin && { stdin } }).then(
   (code) => {
     process.exitCode = code;
   },

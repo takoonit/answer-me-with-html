@@ -278,6 +278,9 @@ export async function main(argv, io = {}) {
     case 'clean': return cmdClean(opts, { print, fail, env });
     case 'serve': return cmdServe(opts, ctx);
     case '__update-check': return (await runUpdateCheck(amHome(env))) ? 0 : 1;
+    // The warm renderer (src/warm-server.js), started by the entry for the next renders: am __warm-server <socket> <token file>.
+    // Loaded here: its node:net and node:stream would otherwise load on every start.
+    case '__warm-server': return (await import('./warm-server.js')).runWarmServer({ socket: arg, token: rest[0], main, oldNodeHint });
     case 'list': return cmdList(ctx), 0;
     case 'help': return cmdHelp(arg, { print, fail });
     default:
