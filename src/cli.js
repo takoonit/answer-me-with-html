@@ -72,6 +72,7 @@ subtitle: Subtitle     # optional
 cols: 3                # number of sheet grid columns, default 3
 style: 80              # STE check strictness: off | 80 (default, warn only) | strict (no page if it fails)
 mode: auto             # auto follows the system | light | dark
+lang: en               # optional: the page language (see Language below); detected from the text when absent
 source: asd-ste100.org # any other key shows in the page header meta line
 ---
 Intro (optional, shown below the title)
@@ -97,6 +98,15 @@ A -> B
   TeX that cannot be read stays as raw TeX in red, with a warning and its line: fix it and render again with --replace.
 - A placeholder such as <host> is shown as text. Inside a sentence only text-level tags stay (b, i, kbd, sup, a, span, br, img ...), and tags that break the page (script, style, iframe ...) are shown as text too. Put raw markup in an html or svg fence and code in backticks.
 - Any other fence language is a code block; \`\`\`ts src=path lines=18-30 quotes real code from a file; see am help code.
+- Language: write the draft in the user's language. The page button labels, <html lang> and the STE rules follow the draft
+  language; STE applies the English or Chinese rules to each sentence by its language (Japanese sentences get only the
+  sentence-length and paragraph-length checks, with the Chinese character limits; any other language gets only those two
+  checks, counted in words). Detection reads Chinese (Simplified, or Traditional when the text has characters written in only
+  one form), Japanese (a draft with kana), Korean, and Cyrillic, Arabic, Hebrew, Thai and Greek text, and reads all
+  Latin-script text as English. lang: sets it: en, zh (Simplified Chinese), zh-Hant or zh-TW (Traditional Chinese), ja, or
+  any other tag such as fr or ko. Set it for a Latin-script language other than English, for a Chinese text too short or
+  too plain to show Traditional characters, or when an exact tag matters (Arabic script also writes Persian, Cyrillic also
+  Ukrainian). A language without its own labels still gets the right <html lang>, with English page labels.
 - For the component list see am list; for one component's syntax see am help <component>.`;
 
 const IMAGE_HELP = `Images: a screenshot, photo or render that already exists as a file
