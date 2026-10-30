@@ -1,13 +1,14 @@
 // Small helpers that deal with the operating system.
-import { spawnSync } from 'node:child_process';
+import { builtin } from './builtin.js';
 import { renameSync } from 'node:fs';
+const childProcess = () => builtin('node:child_process');
 
 // The error codes of a file operation the operating system or a host sandbox refused (EROFS: a read-only file system).
 const DENIED = new Set(['EPERM', 'EACCES', 'EROFS']);
 export const isDenied = (e) => DENIED.has(e?.code);
 
 export function hasCommand(cmd) {
-  return spawnSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' }).status === 0;
+  return childProcess().spawnSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' }).status === 0;
 }
 
 // Rename a file over another one. On Windows a rename fails while another process holds either file, typically a virus scanner

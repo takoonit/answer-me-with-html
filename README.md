@@ -288,7 +288,7 @@ npm install
 npm test          # run the tests
 AM_E2E=1 npm test # also run end-to-end video tests (system TTS, Chrome, ffmpeg)
 npm run smoke:install # install for real with npx skills and validate the plugin manifests (needs network)
-npm run build     # after changing src/, rebuild skills/answer-me-with-html/scripts/am.mjs
+npm run build     # after changing src/, rebuild skills/answer-me-with-html/scripts/am.mjs and am-bundle.mjs
 npm run snapshot  # compare rendered HTML with origin/main (refactors must not change it)
 ```
 

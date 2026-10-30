@@ -5,11 +5,8 @@
 // A served page also gets a script (src/runtime/live.js) that listens on /e/<token>/<file>, with the page's own token: the stream says
 // only that the page file changed, and the page reloads.
 
-import { createServer } from 'node:http';
-import { connect, isIP } from 'node:net';
-import { spawnSync } from 'node:child_process';
+import { builtin } from './builtin.js';
 import { networkInterfaces, uptime } from 'node:os';
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, rmSync, watch, lstatSync, existsSync, openSync, fstatSync, closeSync, linkSync, constants as fsConstants } from 'node:fs';
 import { lstat, realpath, readFile, stat } from 'node:fs/promises';
 import { join, resolve, dirname, basename, sep } from 'node:path';
@@ -19,6 +16,9 @@ import { resolveLanguage } from './language.js';
 import { readPage } from './page.js';
 import { esc } from './svg/text.js';
 import { LIVE_SCRIPT_BODY } from './csp.js';
+const net = () => builtin('node:net');
+const crypto = () => builtin('node:crypto');
+const childProcess = () => builtin('node:child_process');
 
 export const DEFAULT_PORT = 8765;
 const HOST = '127.0.0.1';
@@ -56,7 +56,7 @@ const compareOctets = (x, y) => {
 export function lanIPv4Addresses(interfaces = networkInterfaces()) {
   return [...new Set(Object.values(interfaces).flatMap((entries) => entries ?? [])
     .filter(({ address, family, internal }) => (family === 'IPv4' || family === 4)
-      && !internal && isIP(address) === 4 && address !== LAN_BIND
+      && !internal && net().isIP(address) === 4 && address !== LAN_BIND
       && !address.startsWith('127.') && !address.startsWith('169.254.'))
     .map(({ address }) => address))].sort((x, y) => lanRank(x) - lanRank(y) || compareOctets(x, y));
 }
@@ -77,7 +77,7 @@ export function publicUrlOrigin(input) {
 const TAILSCALE_APP = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';
 
 // run is a test seam: it takes the command and returns what spawnSync returns.
-export function readTailscaleStatus(run = (cmd) => spawnSync(cmd, ['status', '--json'], { encoding: 'utf8', timeout: 5000, env: { ...process.env, TAILSCALE_BE_CLI: '1' } })) {
+export function readTailscaleStatus(run = (cmd) => childProcess().spawnSync(cmd, ['status', '--json'], { encoding: 'utf8', timeout: 5000, env: { ...process.env, TAILSCALE_BE_CLI: '1' } })) {
   let result = run('tailscale');
   if (result.error?.code === 'ENOENT' && process.platform === 'darwin' && existsSync(TAILSCALE_APP)) result = run(TAILSCALE_APP);
   if (result.error?.code === 'ENOENT') {
@@ -96,7 +96,7 @@ export function tailscaleTarget(status) {
   if (state !== 'Running') {
     throw new ServeError(`Tailscale is not running (state: ${state ?? 'unknown'}); run \`tailscale up\` first`);
   }
-  const address = (status.Self?.TailscaleIPs ?? []).find((ip) => isIP(ip) === 4);
+  const address = (status.Self?.TailscaleIPs ?? []).find((ip) => net().isIP(ip) === 4);
   if (!address) throw new ServeError('This machine has no Tailscale IPv4 address; check `tailscale status`');
   const dns = typeof status.Self?.DNSName === 'string' ? status.Self.DNSName.replace(/\.$/, '') : '';
   return { address, host: status.CurrentTailnet?.MagicDNSEnabled === true && dns ? dns : address };
@@ -110,7 +110,7 @@ function hostAllowed(host, additional) {
   const value = host.toLowerCase();
   return additional.some((allowed) => {
     if (value === allowed.toLowerCase()) return true;
-    if (isIP(allowed) !== 4 || !value.startsWith(allowed + ':')) return false;
+    if (net().isIP(allowed) !== 4 || !value.startsWith(allowed + ':')) return false;
     const port = value.slice(allowed.length + 1);
     return /^[1-9][0-9]{0,4}$/.test(port) && Number(port) <= 65535;
   });
@@ -142,7 +142,7 @@ const SECRET_PATTERN = /^[0-9a-f]{64}$/;
 // A persisted capability secret is deliberately a plain, private regular file. On POSIX,
 // reject any group/other permission bits before reading it; invalid files are never replaced.
 function loadSecret(secretFile) {
-  if (secretFile === undefined) return randomBytes(32).toString('hex');
+  if (secretFile === undefined) return crypto().randomBytes(32).toString('hex');
   try {
     // Windows has no O_NOFOLLOW flag. Check the path before opening there so a link cannot be accepted as a secret file.
     if (fsConstants.O_NOFOLLOW === undefined && lstatSync(secretFile).isSymbolicLink()) {
@@ -165,8 +165,8 @@ function loadSecret(secretFile) {
   } catch (e) {
     if (e instanceof ServeError) throw e;
     if (e?.code !== 'ENOENT') throw new ServeError(`Cannot read --secret-file: ${e.message}`);
-    const secret = randomBytes(32).toString('hex');
-    const tmp = `${secretFile}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
+    const secret = crypto().randomBytes(32).toString('hex');
+    const tmp = `${secretFile}.${process.pid}.${crypto().randomBytes(16).toString('hex')}.tmp`;
     try {
       writeFileSync(tmp, secret, { mode: 0o600, flag: 'wx' });
       try {
@@ -189,7 +189,7 @@ const infoPath = (home) => join(home, 'serve.json');
 
 // The token of one page. dir is "pages" or "videos"; the CLI and the server both use this function.
 export function pageToken(secret, dir, file) {
-  return createHmac('sha256', secret).update(`${dir}/${file}`).digest('base64url').slice(0, TOKEN_LENGTH);
+  return crypto().createHmac('sha256', secret).update(`${dir}/${file}`).digest('base64url').slice(0, TOKEN_LENGTH);
 }
 
 export function pageLink({ port, secret, baseUrl }, dir, file) {
@@ -211,7 +211,7 @@ export function validFileName(name) {
 function tokenMatches(secret, dir, file, token) {
   const expected = Buffer.from(pageToken(secret, dir, file));
   const given = Buffer.from(token);
-  return given.length === expected.length && timingSafeEqual(given, expected);
+  return given.length === expected.length && crypto().timingSafeEqual(given, expected);
 }
 
 // Whether the pid is a live process of this user. EPERM means the pid belongs to another user: the server always runs as
@@ -239,7 +239,7 @@ export function readServeInfo(home) {
     const ok = info && Number.isInteger(info.port) && typeof info.secret === 'string' && info.secret.length > 0
       && Number.isFinite(info.startedAt) && !bootedBefore(info.startedAt) && alive(info.pid) && validBase;
     // host: where the server listens, when that is not loopback (--tailscale); older files have none.
-    const host = isIP(info.host) ? info.host : undefined;
+    const host = net().isIP(info.host) ? info.host : undefined;
     return ok ? { pid: info.pid, port: info.port, secret: info.secret, baseUrl: info.baseUrl, host } : null;
   } catch {
     return null;
@@ -479,7 +479,7 @@ function handler(home, secret, allowedHosts, live) {
 // Whether something accepts connections on the port: a recorded server whose pid was reused by another process does not.
 function listening(port, host = HOST, timeout = 500) {
   return new Promise((done) => {
-    const socket = connect({ host, port });
+    const socket = net().connect({ host, port });
     const end = (up) => { socket.destroy(); done(up); };
     socket.setTimeout(timeout, () => end(false));
     socket.once('connect', () => end(true));
@@ -491,7 +491,7 @@ function listening(port, host = HOST, timeout = 500) {
 // tailscaleStatus and bindHost are test seams: the parsed `tailscale status --json`, and the address to listen on instead of the tailnet one.
 export async function startServer({ home, port = DEFAULT_PORT, lan = false, publicUrl, lanAddresses, secretFile, tailscale = false, tailscaleStatus, bindHost }) {
   const addresses = lan ? (lanAddresses ?? lanIPv4Addresses()) : [];
-  if (lan && (!addresses.length || addresses.some((address) => isIP(address) !== 4
+  if (lan && (!addresses.length || addresses.some((address) => net().isIP(address) !== 4
     || address === LAN_BIND || address.startsWith('127.')))) {
     throw new ServeError('--lan needs at least one active non-loopback IPv4 interface');
   }
@@ -506,6 +506,8 @@ export async function startServer({ home, port = DEFAULT_PORT, lan = false, publ
   if (tail && !secretFile) ensureHome(home); // the default secret file lives in home, which may not exist yet
   const secret = loadSecret(secretFile ?? (tail ? join(home, 'serve-secret') : undefined));
   const live = liveStreams(home);
+  // Loaded here, not at the top: node:http brings in Node's whole fetch stack, which every am render would otherwise load for nothing.
+  const { createServer } = await import('node:http');
   const server = createServer(handler(home, secret, allowedHosts, live));
   await new Promise((done, fail) => {
     server.once('error', (e) => fail(e.code === 'EADDRINUSE'

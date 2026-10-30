@@ -4,12 +4,13 @@
 //   WebM   the page encodes its own frames with WebCodecs and muxes the container with src/video/webm.js, which every
 //          player page carries (it drives the export button too). This module only starts it, watches it and writes the
 //          bytes it hands back. Needs Chrome only, no ffmpeg. VP9 video and Opus audio.
-import { spawn } from 'node:child_process';
+import { builtin } from '../builtin.js';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { hasCommand } from '../sys.js';
+const childProcess = () => builtin('node:child_process');
 
 export class ExportError extends Error {}
 
@@ -50,7 +51,7 @@ async function openPlayer(htmlFile, { env, startTimeoutMs }) {
   if (!chromePath) throw new ExportError('No Chrome / Chromium / Edge found. Set the browser path with the AM_CHROME environment variable');
 
   const tmp = mkdtempSync(join(tmpdir(), 'am-export-'));
-  const chrome = spawn(chromePath, [
+  const chrome = childProcess().spawn(chromePath, [
     '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${join(tmp, 'profile')}`,
     '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio',
     '--force-device-scale-factor=1', `--window-size=${WIDTH},${HEIGHT}`, 'about:blank',
@@ -108,7 +109,7 @@ export async function exportMp4(htmlFile, mp4File, { wav, env = process.env, onP
     const { info, evaluate, screenshot, tmp } = player;
     const wavFile = wav ? join(tmp, 'voice.wav') : null;
     if (wav) writeFileSync(wavFile, wav);
-    const ffmpeg = spawn('ffmpeg', [
+    const ffmpeg = childProcess().spawn('ffmpeg', [
       '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(info.fps), '-c:v', 'mjpeg', '-i', '-',
       ...(wavFile ? ['-i', wavFile] : []),
       '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-preset', 'medium',

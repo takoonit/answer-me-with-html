@@ -1,9 +1,10 @@
 // New-version notice: once a day a background child process reads package.json on GitHub and writes the result into state.json;
 // on the next render, if a new version exists, print one "! Update hint" line for the Agent, which asks the user, and put a
 // new-version button on the page. Never updates automatically.
-import { spawn } from 'node:child_process';
+import { builtin } from './builtin.js';
 import { DAY, writeState } from './state.js';
 import { parseVersion, newer } from './version.js';
+const childProcess = () => builtin('node:child_process');
 
 export const UPDATE = Object.freeze({
   checkEveryDays: 1,
@@ -101,7 +102,7 @@ export function shouldCheckUpdate(state, env, config, now = Date.now()) {
 export function spawnUpdateCheck(home, scriptPath) {
   writeState(home, { lastUpdateCheck: Date.now() });
   try {
-    spawn(process.execPath, [scriptPath, '__update-check'], { detached: true, stdio: 'ignore', env: { ...process.env, AM_HOME: home } })
+    childProcess().spawn(process.execPath, [scriptPath, '__update-check'], { detached: true, stdio: 'ignore', env: { ...process.env, AM_HOME: home } })
       .on('error', () => {})
       .unref();
   } catch {

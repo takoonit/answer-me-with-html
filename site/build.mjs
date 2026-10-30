@@ -77,11 +77,13 @@ const THEME_SAMPLES = [['en', 'site/presets/tcp.md', 'themes'], ['zh', 'site/pre
 const PARTIALS = ['boot', 'brand', 'tools', 'footer'];
 const CATALOG_DIR = join(ROOT, 'marketplace/themes');
 
-// Node built-ins the render path imports, answered in the browser by node-stub.js.
+// Node built-ins the render path imports, answered in the browser by node-stub.js, and Node's own hash (src/native-hash.js),
+// which the browser replaces with an empty stub so the page hashes fall back to src/sha256.js.
 const nodeStub = {
   name: 'node-stub',
   setup(b) {
     b.onResolve({ filter: /^(node:)?(fs|path|os|url)$/ }, () => ({ path: join(SRC, 'node-stub.js') }));
+    b.onResolve({ filter: /\/native-hash\.js$/ }, () => ({ path: join(SRC, 'native-hash-stub.js') }));
   },
 };
 

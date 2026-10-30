@@ -1,10 +1,9 @@
 // am CLI: render / patch / video / lint / theme / list / help. main() takes injected streams and environment variables, for testing.
 
-import { parseArgs } from 'node:util';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, statSync } from 'node:fs';
 import { VERSION } from './assets.js';
 import { join, resolve, dirname, basename, extname, sep } from 'node:path';
-import { spawn } from 'node:child_process';
+import { builtin } from './builtin.js';
 import { renderDoc, RenderError, LintError } from './render.js';
 import { parseDoc, ParseError, DraftErrors, CHOICES, VOICES } from './parse.js';
 import { lintDoc, formatWarning } from './lint/ste.js';
@@ -32,6 +31,8 @@ import { readEmbeddedImages } from './images.js';
 import { readEmbeddedCode, MAX_CODE_LINES, LONG_CODE_LINES } from './code.js';
 import { languageIds } from './languages/registry.js';
 import { runServe, serveLink, DEFAULT_PORT } from './serve.js';
+const childProcess = () => builtin('node:child_process');
+// parseArgs too: a named import from node:util makes Node build its ESM view, which loads streams, net and worker_threads.
 
 const MAX_LISTED_WARNINGS = 20;
 
@@ -223,7 +224,7 @@ export async function main(argv, io = {}) {
 
   let parsed;
   try {
-    parsed = parseArgs({
+    parsed = builtin('node:util').parseArgs({
       args: argv,
       allowPositionals: true,
       options: {
@@ -1097,7 +1098,7 @@ function openFile(file) {
     : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', file]]
       : ['xdg-open', [file]];
   try {
-    spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
+    childProcess().spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
   } catch {
     // Failing to open the browser does not affect the output; the path is already printed.
   }

@@ -14,7 +14,7 @@ AI agents are welcome. If one wrote this change or this description, name it, an
 Don't delete this section. Show what you saw, not only what you ran:
 
 - `npm test`, with the number of tests and failures.
-- When `src/` changed: `npm run build` (commit the rebuilt am.mjs) and `npm run snapshot` (state any intended HTML differences).
+- When `src/` changed: `npm run build` (commit the rebuilt am.mjs and am-bundle.mjs) and `npm run snapshot` (state any intended HTML differences).
 - For a change people can see: render the same draft on `main` and on this branch, and attach both screenshots, or a before/after table of what differs.
 -->
 

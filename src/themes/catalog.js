@@ -8,7 +8,7 @@
 // Where a theme came from is kept in state.json under `catalogThemes`: name -> { version, sha256 } of the file as installed.
 // The themes folder holds nothing but theme files (user.js loads every *.json in it), and state.json already has atomic writes.
 // A theme whose file still hashes to its recorded sha256 is an unchanged catalog install; any other file is the user's.
-import { createHash } from 'node:crypto';
+import { builtin } from '../builtin.js';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VERSION } from '../assets.js';
@@ -17,6 +17,7 @@ import { readState, writeState } from '../state.js';
 import { newer } from '../version.js';
 import { NAME, normalizeTheme, checkColors, themeLinks } from './check.js';
 import { BUILTIN_NAMES } from './registry.js';
+const crypto = () => builtin('node:crypto');
 
 export const CATALOG = Object.freeze({
   url: 'https://answer-me-with-html.com/themes/index.json',
@@ -39,7 +40,7 @@ export class CatalogError extends Error {
   }
 }
 
-export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+export const sha256 = (bytes) => crypto().createHash('sha256').update(bytes).digest('hex');
 export const themesDir = (home) => join(home, 'themes');
 export const themeFile = (home, name) => join(themesDir(home), `${name}.json`);
 

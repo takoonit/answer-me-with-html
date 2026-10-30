@@ -287,7 +287,7 @@ npm install
 npm test          # 跑测试
 AM_E2E=1 npm test # 连同视频端到端测试一起跑（需要系统 TTS、Chrome、ffmpeg）
 npm run smoke:install # 用 npx skills 真实安装一次，并校验插件清单（需要联网）
-npm run build     # 改了 src/ 之后，重新打包 skills/answer-me-with-html/scripts/am.mjs
+npm run build     # 改了 src/ 之后，重新打包 skills/answer-me-with-html/scripts/am.mjs 和 am-bundle.mjs
 npm run snapshot  # 与 origin/main 对比生成的 HTML（重构不能改变它）
 ```
 

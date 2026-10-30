@@ -1,14 +1,15 @@
 // Narration voice-over. Fallback order: ElevenLabs (with ELEVENLABS_API_KEY) → system TTS (macOS say / Linux espeak-ng) → captions only.
 // --voice local uses a local OpenAI-compatible /v1/audio/speech service (AM_TTS_URL) instead, only when given explicitly.
 // Each line is synthesized as 22050 Hz mono 16-bit PCM and cached by text + voice in AM_HOME/cache/tts/, so re-renders do not synthesize again.
-import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { builtin } from '../builtin.js';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { hasCommand, isDenied } from '../sys.js';
 import { baseLanguage, voiceHints } from '../language.js';
 import { estimateSeconds } from './script.js';
+const crypto = () => builtin('node:crypto');
+const childProcess = () => builtin('node:child_process');
 
 export const SAMPLE_RATE = 22050;
 const ELEVEN_DEFAULT_VOICE = 'bIHbv24MWmeRgasZH58o'; // Will: a premade voice, so it works on the free plan; ElevenLabs lists zh as verified
@@ -199,13 +200,13 @@ function systemVoice(platform, which) {
 
 // The installed macOS voices, read once when the provider is created; `say -v '?'` writes one line per voice.
 export function macVoices() {
-  return parseMacVoices(spawnSync('say', ['-v', '?'], { encoding: 'utf8' }).stdout || '');
+  return parseMacVoices(childProcess().spawnSync('say', ['-v', '?'], { encoding: 'utf8' }).stdout || '');
 }
 
 // The installed espeak-ng voices, read once when the provider is created; `espeak-ng --voices` prints a table whose
 // second column is the voice name.
 export function espeakVoices() {
-  return parseEspeakVoices(spawnSync('espeak-ng', ['--voices'], { encoding: 'utf8' }).stdout || '');
+  return parseEspeakVoices(childProcess().spawnSync('espeak-ng', ['--voices'], { encoding: 'utf8' }).stdout || '');
 }
 
 // Parse the output of `say -v '?'`: name, locale, then a sample after `#`. macOS writes the Chinese name of some voices in
@@ -286,7 +287,7 @@ const stripName = (name) => name.replace(/\s*[(（].*$/, '');
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    const p = childProcess().spawn(cmd, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let err = '';
     p.stderr.on('data', (d) => { err += d; });
     p.on('error', reject);
@@ -371,7 +372,7 @@ export async function synthAll(texts, provider, { cacheDir: wanted, languageOf }
       // The key holds the voice that was actually chosen, so picking or installing another voice for a language does not
       // reuse the clips the old one produced.
       const key = `${provider.id}${voice ? `:${voice}` : ''}${language ? `\n${language}` : ''}\n${texts[i]}`;
-      const file = cacheDir && join(cacheDir, `${createHash('sha1').update(key).digest('hex')}.pcm`);
+      const file = cacheDir && join(cacheDir, `${crypto().createHash('sha1').update(key).digest('hex')}.pcm`);
       const cached = file && readCache(file);
       if (cached) {
         results[i] = cached;

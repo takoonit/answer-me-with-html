@@ -58,7 +58,7 @@ If the context contains the `[answer-me-with-html always-on]` reminder (the user
 
 ## 2. Workflow (one Bash call)
 
-The CLI is bundled in this skill's directory: `scripts/am.mjs`, a single file that needs only Node.js 20+. If `node` is not found or is older than v20, read `${CLAUDE_SKILL_DIR}/references/setup.md` and follow it. Below, `am` always means:
+The CLI is bundled in this skill's directory: `scripts/am.mjs`, which needs only Node.js 20+. If `node` is not found or is older than v20, read `${CLAUDE_SKILL_DIR}/references/setup.md` and follow it. Below, `am` always means:
 
 ```bash
 node "${CLAUDE_SKILL_DIR}/scripts/am.mjs"

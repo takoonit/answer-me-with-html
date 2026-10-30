@@ -5,6 +5,7 @@
 // the diagrams set style attributes).
 
 import { sha256Base64 } from './sha256.js';
+import { nativeSha256Base64 } from './native-hash.js';
 import { LIVE_JS } from './assets.js';
 
 // The text between <script data-live> and </script> that `am serve` adds (src/serve.js). The page cannot know whether it will be
@@ -12,8 +13,10 @@ import { LIVE_JS } from './assets.js';
 // keeps the hash from drifting from what the server sends.
 export const LIVE_SCRIPT_BODY = `\n${LIVE_JS}`;
 
-// CSP source expression for a script's text: base64 of the SHA-256 of its UTF-8 bytes (src/sha256.js, so the site's browser bundle can render pages too).
-export const scriptHash = (text) => `'sha256-${sha256Base64(text)}'`;
+// CSP source expression for a script's text: base64 of the SHA-256 of its UTF-8 bytes. Node hashes natively (src/native-hash.js);
+// the site's browser bundle, where that file is a stub, uses the plain src/sha256.js.
+const hashBase64 = nativeSha256Base64 ?? sha256Base64;
+export const scriptHash = (text) => `'sha256-${hashBase64(text)}'`;
 
 // The page with one more inline script allowed, for a caller that adds a script of its own to a rendered page (the site's preview frames).
 export const pinScript = (html, text) => html.replace(/(<meta http-equiv="Content-Security-Policy" content="[^"]*?script-src )/, `$1${scriptHash(text)} `);
