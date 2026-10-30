@@ -89,9 +89,12 @@ test('cli render: -o rejects an existing folder with one actionable error', asyn
 test('cli executable: a folder output exits without an internal stack', () => {
   mkdirSync(join(dir, 'bundle-folder'));
   const cli = fileURLToPath(new URL('../skills/answer-me-with-html/scripts/am.mjs', import.meta.url));
+  // Node itself can write to stderr before the CLI runs (an unreadable NODE_EXTRA_CA_CERTS file, flags in NODE_OPTIONS); this test
+  // checks the CLI's own output, so the child starts without them.
+  const { NODE_EXTRA_CA_CERTS, NODE_OPTIONS, ...env } = process.env;
   const r = spawnSync(process.execPath, [cli, 'render', '-', '-o', 'bundle-folder'], {
     cwd: dir, input: GOOD, encoding: 'utf8',
-    env: { ...process.env, AM_HOME: dir, AM_NO_OPEN: '1', AM_NO_UPDATE_CHECK: '1' },
+    env: { ...env, AM_HOME: dir, AM_NO_OPEN: '1', AM_NO_UPDATE_CHECK: '1' },
   });
   assert.equal(r.status, 2, r.stderr);
   assert.equal(r.stderr, '✗ -o names a folder; give a file path, for example -o page.html\n');

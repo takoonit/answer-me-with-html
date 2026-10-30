@@ -296,7 +296,9 @@ test('serve.json from before the boot (a reused pid) is stale: no link, and serv
   }
 });
 
-test('serve.json of a pid that belongs to another user (a reused pid) is stale: no link, and serve starts', { skip: isWin && 'pid 1 is not another user on Windows' }, async () => {
+// As root, process.kill(1, 0) succeeds, so pid 1 is not "another user" there either (a container, a CI job run as root).
+const asRoot = process.getuid?.() === 0;
+test('serve.json of a pid that belongs to another user (a reused pid) is stale: no link, and serve starts', { skip: (isWin && 'pid 1 is not another user on Windows') || (asRoot && 'pid 1 is not another user when the tests run as root') }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'am-serve-eperm-'));
   try {
     // pid 1 is init / launchd: alive, but not ours, so process.kill(1, 0) gives EPERM.
