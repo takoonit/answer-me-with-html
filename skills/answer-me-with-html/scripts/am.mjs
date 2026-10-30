@@ -2129,6 +2129,7 @@ var FONTS = Object.freeze({
   bangers: {
     family: "Bangers",
     file: "@fontsource/bangers/files/bangers-latin-400-normal.woff2",
+    since: "0.5.3",
     notice: "Bangers, Copyright 2010 The Bangers Project Authors (https://github.com/googlefonts/bangers), SIL Open Font License 1.1 (https://openfontlicense.org)"
   },
   // A variable font: the Latin subset with the weight and roundness (ROND) axes, about 70 KB.
@@ -2136,6 +2137,7 @@ var FONTS = Object.freeze({
     family: "Google Sans Flex",
     file: "@fontsource-variable/google-sans-flex/files/google-sans-flex-latin-rond-normal.woff2",
     weight: "1 1000",
+    since: "next",
     notice: "Google Sans Flex, Copyright 2015 Google LLC (https://github.com/googlefonts/googlesans-flex), SIL Open Font License 1.1 (https://openfontlicense.org)"
   }
 });
