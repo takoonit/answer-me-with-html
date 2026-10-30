@@ -305,6 +305,24 @@ body.am-has-reply-bar { padding-block-end: 72px; }
 .am-annot-head { display: flex; justify-content: space-between; gap: 12px; font-size: var(--am-fs-text); font-weight: 600; margin-bottom: 8px; }
 .am-annot-meta { font: var(--am-fs-label) var(--font-mono); font-weight: 400; color: var(--ink-2); }
 .am-annot-scroll { overflow-x: auto; }
+/* A sentence wider than the panel scrolls, and an overlay scrollbar (macOS, phones) does not show it: fade the edge where text is
+   hidden. The scroll timeline is only active while the line overflows, so a line that fits keeps no fade; without support, no fade. */
+@property --am-fade-start { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --am-fade-end { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes am-fade-edges {
+  0% { --am-fade-start: 0px; --am-fade-end: 40px; }
+  10% { --am-fade-start: 40px; }
+  90% { --am-fade-end: 40px; }
+  100% { --am-fade-start: 40px; --am-fade-end: 0px; }
+}
+@supports (animation-timeline: scroll()) {
+  @media screen {
+    .am-annot-scroll {
+      mask-image: linear-gradient(to right, transparent, #000 var(--am-fade-start), #000 calc(100% - var(--am-fade-end)), transparent);
+      animation: am-fade-edges linear both; animation-timeline: scroll(self inline);
+    }
+  }
+}
 .am-annot-line {
   position: relative; display: inline-block; white-space: pre; font: var(--am-fs-body)/1.6 var(--font-mono);
   padding-bottom: calc(var(--rows, 0) * (var(--am-ln-segLine) + 1px) + var(--am-ln-annotPad));
