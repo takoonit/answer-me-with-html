@@ -305,22 +305,24 @@ body.am-has-reply-bar { padding-block-end: 72px; }
 .am-annot-head { display: flex; justify-content: space-between; gap: 12px; font-size: var(--am-fs-text); font-weight: 600; margin-bottom: 8px; }
 .am-annot-meta { font: var(--am-fs-label) var(--font-mono); font-weight: 400; color: var(--ink-2); }
 .am-annot-scroll { overflow-x: auto; }
-/* A sentence wider than the panel scrolls, and an overlay scrollbar (macOS, phones) does not show it: fade the edge where text is
-   hidden. The scroll timeline is only active while the line overflows, so a line that fits keeps no fade; without support, no fade. */
+/* A long sentence and, on a phone, the toolbar scroll sideways, and an overlay scrollbar (macOS, phones) does not show it: fade the
+   edge where something is hidden. The scroll timeline is only active while the box overflows, so a box that fits keeps no fade;
+   without support, no fade. In a right-to-left box the scroll starts at the right, so the fade runs the other way. */
 @property --am-fade-start { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --am-fade-end { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @keyframes am-fade-edges {
-  0% { --am-fade-start: 0px; --am-fade-end: 40px; }
-  10% { --am-fade-start: 40px; }
-  90% { --am-fade-end: 40px; }
-  100% { --am-fade-start: 40px; --am-fade-end: 0px; }
+  0% { --am-fade-start: 0px; --am-fade-end: 32px; }
+  10% { --am-fade-start: 32px; }
+  90% { --am-fade-end: 32px; }
+  100% { --am-fade-start: 32px; --am-fade-end: 0px; }
 }
 @supports (animation-timeline: scroll()) {
   @media screen {
-    .am-annot-scroll {
-      mask-image: linear-gradient(to right, transparent, #000 var(--am-fade-start), #000 calc(100% - var(--am-fade-end)), transparent);
+    .am-annot-scroll, .am-toolbar {
+      mask-image: linear-gradient(var(--am-fade-to, to right), transparent, #000 var(--am-fade-start), #000 calc(100% - var(--am-fade-end)), transparent);
       animation: am-fade-edges linear both; animation-timeline: scroll(self inline);
     }
+    .am-annot-scroll:dir(rtl), .am-toolbar:dir(rtl) { --am-fade-to: to left; }
   }
 }
 .am-annot-line {
